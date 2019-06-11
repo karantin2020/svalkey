@@ -7,10 +7,14 @@ type Poly1305 struct {
 }
 
 // New creates new Poly1305 instance
-func New() *Poly1305 {
-	return &Poly1305{
-		key: NewRandomKey(),
+func New() (*Poly1305, error) {
+	key, err := NewRandomKey()
+	if err != nil {
+		return nil, err
 	}
+	return &Poly1305{
+		key: key,
+	}, nil
 }
 
 // Decrypt decrypts in, returns decrypted byte slice and error

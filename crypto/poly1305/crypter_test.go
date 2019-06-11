@@ -11,7 +11,8 @@ var (
 )
 
 func TestPoly1305_Crypter(t *testing.T) {
-	p := New()
+	p, err := New()
+	assert.Nil(t, err, "New poly1305 must not pass error")
 	ct, err := p.Encrypt(testMessage)
 	assert.Nil(t, err, "Encrypt must not pass error")
 	assert.NotNil(t, ct, "Encrypt must not pass nil ciphertext")
@@ -28,10 +29,12 @@ func TestPoly1305_Crypter(t *testing.T) {
 }
 
 func TestPoly1305_Crypter_Negative1(t *testing.T) {
-	p := New()
+	p, err := New()
+	assert.Nil(t, err, "New poly1305 must not pass error")
 	ct, err := p.Encrypt(testMessage)
 	assert.Nil(t, err, "Encrypt must not pass error")
-	bp := New()
+	bp, err := New()
+	assert.Nil(t, err, "New poly1305 must not pass error")
 	pt, err := bp.Decrypt(ct)
 	assert.NotNil(t, err, "Decrypt must pass error with bad key")
 	assert.NotEqual(t, testMessage, pt,
@@ -39,7 +42,8 @@ func TestPoly1305_Crypter_Negative1(t *testing.T) {
 }
 
 func TestPoly1305_Crypter_Negative2(t *testing.T) {
-	p := New()
+	p, err := New()
+	assert.Nil(t, err, "New poly1305 must not pass error")
 	ct, err := p.Encrypt(testMessage)
 	assert.Nil(t, err, "Encrypt must not pass error")
 	ct[0] = 'e'
@@ -52,7 +56,8 @@ func TestPoly1305_Crypter_Negative2(t *testing.T) {
 }
 
 func TestPoly1305_Crypter_Negative3(t *testing.T) {
-	p := New()
+	p, err := New()
+	assert.Nil(t, err, "New poly1305 must not pass error")
 	ct, err := p.Encrypt(testMessage)
 	assert.Nil(t, err, "Encrypt must not pass error")
 	ct[len(ct)-5] = 'e'
@@ -65,6 +70,7 @@ func TestPoly1305_Crypter_Negative3(t *testing.T) {
 }
 
 func TestNew(t *testing.T) {
-	p := New()
+	p, err := New()
+	assert.Nil(t, err, "New poly1305 must not pass error")
 	assert.NotNil(t, p, "relult of New() must be not nil")
 }

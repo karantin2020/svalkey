@@ -21,7 +21,9 @@ var (
  */
 
 func TestGenerateKey(t *testing.T) {
-	testKey = New()
+	var err error
+	testKey, err = New()
+	assert.Nil(t, err, "New key must past no error")
 }
 
 func TestEncrypt(t *testing.T) {
@@ -95,7 +97,10 @@ func TestDecryptFailures(t *testing.T) {
 		}
 	}
 
-	otherKey := New()
+	otherKey, err := New()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
 
 	ct, err := testKey.Encrypt(testMessage)
 	if err != nil {
@@ -108,7 +113,10 @@ func TestDecryptFailures(t *testing.T) {
 }
 
 func TestNaClBox_JSON(t *testing.T) {
-	n := New()
+	n, err := New()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
 	got, err := n.MarshalJSON()
 	assert.Nil(t, err, "NaClBox MarshalJSON() must pass no error")
 	assert.NotNil(t, got, "NaClBox MarshalJSON() must pass not nil byte slice")

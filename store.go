@@ -55,10 +55,14 @@ func NewCustomStore(vstore store.Store,
 	if codec == nil {
 		codec = GobCodec{}
 	}
+	polyKey, err := poly1305.New()
+	if err != nil {
+		return nil, err
+	}
 	return &Store{
 		Store:   vstore,
 		codec:   codec,
-		crypter: poly1305.New(),
+		crypter: polyKey,
 	}, nil
 }
 

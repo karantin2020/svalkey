@@ -128,35 +128,39 @@ func poly1305Verify(msg []byte, nonce []byte, key *MACKey, mac []byte) bool {
 }
 
 // NewRandomKey returns new encryption and message authentication keys.
-func NewRandomKey() *Key {
+func NewRandomKey() (*Key, error) {
 	k := &Key{}
 
-	k.Init()
-	return k
+	err := k.Init()
+	if err != nil {
+		return nil, err
+	}
+	return k, nil
 }
 
 // Init inits new encryption and message authentication keys.
-func (k *Key) Init() {
+func (k *Key) Init() error {
 	if k == nil {
-		panic("nil pointer Key found in init func")
+		return fmt.Errorf("Nil pointer Key found in init func")
 	}
 
 	n, err := rand.Read(k.EncryptionKey[:])
 	if n != aesKeySize || err != nil {
-		panic("unable to read enough random bytes for encryption key")
+		return fmt.Errorf("Unable to read enough random bytes for encryption key")
 	}
 
 	n, err = rand.Read(k.MACKey.K[:])
 	if n != macKeySizeK || err != nil {
-		panic("unable to read enough random bytes for MAC encryption key")
+		return fmt.Errorf("Unable to read enough random bytes for MAC encryption key")
 	}
 
 	n, err = rand.Read(k.MACKey.R[:])
 	if n != macKeySizeR || err != nil {
-		panic("unable to read enough random bytes for MAC key")
+		return fmt.Errorf("Unable to read enough random bytes for MAC key")
 	}
 
 	maskKey(&k.MACKey)
+	return nil
 }
 
 // NewRandomNonce returns a new random nonce. It panics on error so that the

@@ -186,7 +186,10 @@ func TestStore_List(t *testing.T) {
 	m := newMockStore(t)
 
 	st, err := NewCustomStore(m, GobCodec{})
-	st.SetCrypter(naclbox.New())
+	nc, err := naclbox.New()
+	assert.Nil(t, err, "Err in New nacl key must be nil")
+	assert.NotNil(t, nc, "New nacl key must not be nil")
+	st.SetCrypter(nc)
 	Register(TestType{})
 	assert.Nil(t, err, "Err in Put must be nil")
 	assert.NotNil(t, st, "New custom store must not be nil")

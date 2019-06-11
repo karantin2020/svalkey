@@ -6,7 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	"io"
+	"fmt"
 
 	"golang.org/x/crypto/nacl/secretbox"
 )
@@ -25,14 +25,14 @@ type NaClBox struct {
 }
 
 // New returns new NaClBox
-func New() *NaClBox {
+func New() (*NaClBox, error) {
 	n := NaClBox{}
 	var err error
 	n.key, err = GenerateKey()
 	if err != nil {
-		panic("NaclBox was not created, " + err.Error())
+		return nil, fmt.Errorf("NaclBox was not created, " + err.Error())
 	}
-	return &n
+	return &n, nil
 }
 
 // MarshalJSON converts the NaClBox to JSON.
@@ -55,9 +55,9 @@ func (n *NaClBox) UnmarshalJSON(data []byte) error {
 // GenerateKey creates a new random secret key.
 func GenerateKey() (*[KeySize]byte, error) {
 	key := new([KeySize]byte)
-	_, err := io.ReadFull(rand.Reader, key[:])
-	if err != nil {
-		return nil, err
+	n, err := rand.Read(key[:])
+	if n != KeySize || err != nil {
+		return nil, fmt.Errorf("Unable to read enough random bytes for encryption key")
 	}
 
 	return key, nil
@@ -66,9 +66,9 @@ func GenerateKey() (*[KeySize]byte, error) {
 // GenerateNonce creates a new random nonce.
 func GenerateNonce() (*[NonceSize]byte, error) {
 	nonce := new([NonceSize]byte)
-	_, err := io.ReadFull(rand.Reader, nonce[:])
-	if err != nil {
-		return nil, err
+	n, err := rand.Read(nonce[:])
+	if n != NonceSize || err != nil {
+		return nil, fmt.Errorf("Unable to read enough random bytes for nonce")
 	}
 
 	return nonce, nil
