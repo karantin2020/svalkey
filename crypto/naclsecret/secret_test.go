@@ -1,4 +1,4 @@
-package naclbox
+package naclsecret
 
 import (
 	"bytes"

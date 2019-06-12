@@ -10,7 +10,7 @@ import (
 	"github.com/abronan/valkeyrie/store"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/karantin2020/svalkey/crypto/naclbox"
+	"github.com/karantin2020/svalkey/crypto/naclsecret"
 )
 
 var (
@@ -112,7 +112,7 @@ func TestStore_List(t *testing.T) {
 	m := newMockStore(t)
 
 	st, err := NewCustomStore(m, GobCodec{})
-	nc, err := naclbox.New()
+	nc, err := naclsecret.New()
 	assert.Nil(t, err, "Err in New nacl key must be nil")
 	assert.NotNil(t, nc, "New nacl key must not be nil")
 	st.SetCrypter(nc)

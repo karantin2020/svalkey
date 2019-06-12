@@ -8,7 +8,7 @@ import (
 
 	"github.com/abronan/valkeyrie/store"
 
-	"github.com/karantin2020/svalkey/crypto/naclbox"
+	"github.com/karantin2020/svalkey/crypto/naclsecret"
 	"github.com/karantin2020/svalkey/crypto/poly1305"
 )
 
@@ -27,7 +27,7 @@ type ListPair struct {
 
 var (
 	_ Crypter = &poly1305.Poly1305{}
-	_ Crypter = &naclbox.NaClBox{}
+	_ Crypter = &naclsecret.NaClBox{}
 )
 
 var pool = &sync.Pool{

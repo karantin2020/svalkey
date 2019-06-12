@@ -1,6 +1,6 @@
-// Package naclbox provides message security using the NaCl secretbox
+// Package naclsecret provides message security using the NaCl secretbox
 // ciphers.
-package naclbox
+package naclsecret
 
 import (
 	"crypto/rand"
