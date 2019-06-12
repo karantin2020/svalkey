@@ -2,9 +2,10 @@ package svalkey
 
 import (
 	"errors"
-	"strconv"
-	"sync"
+	"fmt"
 	"testing"
+
+	fuzz "github.com/google/gofuzz"
 
 	"github.com/abronan/valkeyrie/store"
 	"github.com/stretchr/testify/assert"
@@ -14,13 +15,22 @@ import (
 
 var (
 	testKey                = "test key"
-	testVal                = []byte("test val")
+	testVal                = TestType{}
 	ErrorNoKey             = errors.New("Key doesn't exist")
 	_          store.Store = &Mock{}
 )
 
+const (
+	testCount         = 1000
+	testCountBytesMin = 10
+	testCountBytesMax = 1000
+)
+
 type TestType struct {
-	A, B int
+	A, B int64
+	C    string
+	D    float64
+	E    []byte
 }
 
 func newMockStore(t *testing.T) store.Store {
@@ -44,9 +54,32 @@ func TestStore_PutAndGet(t *testing.T) {
 	assert.Nil(t, err, "Err in Put must be nil")
 	assert.NotNil(t, st, "New custom store must not be nil")
 
-	testValIn := TestType{234, 654}
-	err = st.Put(testKey, testValIn, nil)
-	assert.Nil(t, err, "Err in Put must be nil")
+	testData := map[string]TestType{}
+	fb := fuzz.New().NilChance(0).NumElements(testCountBytesMin, testCountBytesMax)
+	fm := fuzz.New().NilChance(0).NumElements(testCount, testCount).Funcs(
+		func(i *string, c fuzz.Continue) {
+			*i = c.RandString()
+			for len(*i) == 0 {
+				*i = c.RandString()
+			}
+		},
+		func(i *[]byte, c fuzz.Continue) {
+			fb.Fuzz(i)
+		},
+	)
+	fm.Fuzz(&testData)
+	assert.Greater(t, len(testData), testCount/2,
+		"Must have greater than testCount/2 random test values")
+	i := 0
+	for k, v := range testData {
+		err = st.Put(k, v, nil)
+		assert.Nil(t, err, "Err in Put must be nil")
+		if i == 3 {
+			testKey = k
+			testVal = v
+		}
+		i++
+	}
 
 	testValErr := TestType{}
 	ms := st.Store.(*Mock)
@@ -54,132 +87,25 @@ func TestStore_PutAndGet(t *testing.T) {
 	err = st.unmarshal(mv, &testValErr)
 	assert.NotNil(t, err, "Err in Get negative must not be nil")
 	assert.NotNil(t, testValErr, "Get negativevalue must not be nil")
-	assert.NotEqual(t, testValIn, testValErr, "Result Put->Get Value "+
+	assert.NotEqual(t, testVal, testValErr, "Result Put->Get Value "+
 		"in negative must be equal")
 
-	testValOut := TestType{}
-	err = st.Get(testKey, &testValOut, nil)
-	assert.Nil(t, err, "Err in Get must be nil")
-	assert.NotNil(t, testValOut, "Get value must not be nil")
-	assert.Equal(t, testValIn, testValOut, "Result Put->Get Value must be equal")
-}
+	for k, v := range testData {
+		testValOut := TestType{}
+		err = st.Get(k, &testValOut, nil)
+		if !assert.Nil(t, err, "Err in Get must be nil") {
+			fmt.Printf("Error encoded value is: %x\n", ms.kv[k])
+			fmt.Printf("Error key is: %s\n", k)
+			fmt.Printf("Error value is: %v\n", v)
+		}
+		assert.NotNil(t, testValOut, "Get value must not be nil")
+		if !assert.Equal(t, v, testValOut, "Result Put->Get Value must be equal") {
+			fmt.Printf("Not equal key is: %s\n", k)
+			fmt.Printf("Not equal value is: %v\n", v)
+			fmt.Printf("Not equal out value is: %v\n", testValOut)
+		}
 
-type Mock struct {
-	kv map[string][]byte
-	sync.RWMutex
-	closed bool
-}
-
-func NewMock() *Mock {
-	return &Mock{
-		kv: make(map[string][]byte),
 	}
-}
-
-func (m *Mock) Put(key string,
-	value []byte, options *store.WriteOptions) error {
-	m.Lock()
-	defer m.Unlock()
-	m.kv[key] = value
-	return nil
-}
-
-// Get a value given its key
-func (m *Mock) Get(key string,
-	options *store.ReadOptions) (*store.KVPair, error) {
-	m.RLock()
-	defer m.RUnlock()
-	if val, ok := m.kv[key]; ok {
-		return &store.KVPair{
-			Key:       key,
-			Value:     val,
-			LastIndex: 0,
-		}, nil
-	}
-	return nil, ErrorNoKey
-}
-
-// Delete the value at the specified key
-func (m *Mock) Delete(key string) error {
-	m.Lock()
-	defer m.Unlock()
-	delete(m.kv, key)
-	return nil
-}
-
-// Verify if a Key exists in the store
-func (m *Mock) Exists(key string,
-	options *store.ReadOptions) (bool, error) {
-	m.RLock()
-	defer m.RUnlock()
-	if _, ok := m.kv[key]; ok {
-		return true, nil
-	}
-	return false, nil
-}
-
-// Watch for changes on a key
-func (m *Mock) Watch(key string,
-	stopCh <-chan struct{}, options *store.ReadOptions) (<-chan *store.KVPair, error) {
-	return nil, nil
-}
-
-// WatchTree watches for changes on child nodes under
-// a given directory
-func (m *Mock) WatchTree(directory string,
-	stopCh <-chan struct{}, options *store.ReadOptions) (<-chan []*store.KVPair, error) {
-	return nil, nil
-}
-
-// NewLock creates a lock for a given key.
-// The returned Locker is not held and must be acquired
-// with `.Lock`. The Value is optional.
-func (m *Mock) NewLock(key string,
-	options *store.LockOptions) (store.Locker, error) {
-	return nil, nil
-}
-
-// List the content of a given prefix
-func (m *Mock) List(directory string,
-	options *store.ReadOptions) ([]*store.KVPair, error) {
-	m.RLock()
-	defer m.RUnlock()
-	ret := []*store.KVPair{}
-	for k, v := range m.kv {
-		ret = append(ret, &store.KVPair{
-			Key:       k,
-			Value:     v,
-			LastIndex: 0,
-		})
-	}
-	return ret, nil
-}
-
-// DeleteTree deletes a range of keys under a given directory
-func (m *Mock) DeleteTree(directory string) error {
-	m.Lock()
-	defer m.Unlock()
-	m.kv = make(map[string][]byte)
-	return nil
-}
-
-// Atomic CAS operation on a single value.
-// Pass previous = nil to create a new key.
-func (m *Mock) AtomicPut(key string,
-	value []byte, previous *store.KVPair,
-	options *store.WriteOptions) (bool, *store.KVPair, error) {
-	return false, nil, nil
-}
-
-// Atomic delete of a single value
-func (m *Mock) AtomicDelete(key string,
-	previous *store.KVPair) (bool, error) {
-	return false, nil
-}
-
-// Close the store connection
-func (m *Mock) Close() {
-	m.closed = true
 }
 
 func TestStore_List(t *testing.T) {
@@ -194,23 +120,30 @@ func TestStore_List(t *testing.T) {
 	assert.Nil(t, err, "Err in Put must be nil")
 	assert.NotNil(t, st, "New custom store must not be nil")
 
-	testValIn := []TestType{{234, 654}, {456, 876}}
-	for i := range testValIn {
-		err = st.Put(testKey+strconv.Itoa(i), testValIn[i], nil)
+	testData := map[string]TestType{}
+	fm := fuzz.New().NilChance(0).NumElements(testCount, testCount).Funcs(
+		func(i *string, c fuzz.Continue) {
+			*i = c.RandString()
+			for len(*i) == 0 {
+				*i = c.RandString()
+			}
+		},
+	)
+	fm.Fuzz(&testData)
+	for k, v := range testData {
+		err = st.Put(k, v, nil)
 		assert.Nil(t, err, "Err in Put must be nil")
 	}
 
-	testValOut := []TestType{}
-	err = st.List(testKey, &testValOut, nil)
+	testType := []TestType{}
+	retList, err := st.List(testKey, &testType, nil)
 	assert.Nil(t, err, "Err in List must be nil")
-	assert.NotNil(t, testValOut, "List value must not be nil")
-	sum1 := 0
-	for _, v := range testValIn {
-		sum1 += v.A + v.B
+	assert.NotNil(t, testType, "List value must not be nil")
+	assert.NotNil(t, retList, "List return []ListPair must not be nil")
+	assert.Equal(t, len(testData), len(retList),
+		"In List returnd slices length must be equal to length of"+
+			" original test data")
+	for _, v := range retList {
+		assert.Equal(t, testData[v.key], v.value.(TestType))
 	}
-	sum2 := 0
-	for _, v := range testValOut {
-		sum2 += v.A + v.B
-	}
-	assert.Equal(t, sum1, sum2, "Result Put...->List Value must be equal")
 }

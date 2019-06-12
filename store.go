@@ -19,6 +19,12 @@ type Store struct {
 	crypter Crypter
 }
 
+// ListPair holds return of List store method
+type ListPair struct {
+	key   string
+	value interface{}
+}
+
 var (
 	_ Crypter = &poly1305.Poly1305{}
 	_ Crypter = &naclbox.NaClBox{}
@@ -163,35 +169,37 @@ func (s *Store) Exists(key string, options *store.ReadOptions) (bool, error) {
 
 // List the content of a given prefix
 func (s *Store) List(directory string, value interface{},
-	options *store.ReadOptions) error {
+	options *store.ReadOptions) ([]*ListPair, error) {
 	lres, err := s.Store.List(directory, options)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	for i := range lres {
 		lres[i].Value, err = s.crypter.Decrypt(lres[i].Value)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
+	retList := []*ListPair{}
 	v := reflect.ValueOf(value)
 	if v.Kind() != reflect.Ptr {
-		return ErrorInvalidOutPointer
+		return nil, ErrorInvalidOutPointer
 	}
 	// get the value that the pointer v points to.
 	slice := v.Elem()
 	if slice.Kind() != reflect.Slice {
-		return ErrorInvalidOutSlice
+		return nil, ErrorInvalidOutSlice
 	}
 	slice.Set(reflect.MakeSlice(slice.Type(), len(lres), len(lres)))
 
 	for i, val := range lres {
 		err := s.unmarshal(val.Value, slice.Index(i).Addr().Interface())
 		if err != nil {
-			return err
+			return nil, err
 		}
+		retList = append(retList, &ListPair{val.Key, slice.Index(i).Interface()})
 	}
-	return nil
+	return retList, nil
 }
 
 // DeleteTree deletes a range of keys under a given directory
