@@ -5,15 +5,33 @@ import (
 	"crypto/rand"
 	"testing"
 
+	fuzz "github.com/google/gofuzz"
+
 	"golang.org/x/crypto/nacl/secretbox"
 
 	"github.com/stretchr/testify/assert"
 )
 
 var (
-	testMessage = []byte("Do not go gentle into that good night.")
-	testKey     *NaClBox
+	testMessages [][]byte
+	testKey      *NaClBox
 )
+
+const (
+	testCount         = 1000
+	testCountBytesMin = 10
+	testCountBytesMax = 1000
+)
+
+func prepareTestMessages() {
+	fb := fuzz.New().NilChance(0).NumElements(testCountBytesMin, testCountBytesMax)
+	fm := fuzz.New().NilChance(0).NumElements(testCount, testCount).Funcs(
+		func(i *[]byte, c fuzz.Continue) {
+			fb.Fuzz(i)
+		},
+	)
+	fm.Fuzz(&testMessages)
+}
 
 /*
  * The following tests verify the positive functionality of this package:
@@ -24,21 +42,19 @@ func TestGenerateKey(t *testing.T) {
 	var err error
 	testKey, err = New()
 	assert.Nil(t, err, "New key must past no error")
+	prepareTestMessages()
 }
 
 func TestEncrypt(t *testing.T) {
-	ct, err := testKey.Encrypt(testMessage)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
+	for _, m := range testMessages {
+		ct, err := testKey.Encrypt(m)
+		assert.Nil(t, err, "Err in poly1305.Encrypt must be nil")
 
-	pt, err := testKey.Decrypt(ct)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
+		pt, err := testKey.Decrypt(ct)
+		assert.Nil(t, err, "Err in poly1305.Decrypt must be nil")
 
-	if !bytes.Equal(testMessage, pt) {
-		t.Fatalf("messages don't match")
+		assert.Equal(t, m, pt, "Encrypted->Decrypted messages"+
+			" must be equal to original messages")
 	}
 }
 
@@ -65,7 +81,7 @@ func TestPRNGFailures(t *testing.T) {
 	testFunc := func() {
 		_, err := GenerateKey()
 		if err == nil {
-			t.Fatal("expected key generation failure with bad PRNG")
+			t.Fatal("Err in poly1305.Encrypt: expected key generation failure with bad PRNG")
 		}
 	}
 	prngTester(32, testFunc)
@@ -73,15 +89,15 @@ func TestPRNGFailures(t *testing.T) {
 	testFunc = func() {
 		_, err := GenerateNonce()
 		if err == nil {
-			t.Fatal("expected nonce generation failure with bad PRNG")
+			t.Fatal("Err in poly1305.GenerateNonce: expected nonce generation failure with bad PRNG")
 		}
 	}
 	prngTester(24, testFunc)
 
 	testFunc = func() {
-		_, err := testKey.Encrypt(testMessage)
-		if err == nil {
-			t.Fatal("expected encryption failure with bad PRNG")
+		for _, m := range testMessages {
+			_, err := testKey.Encrypt(m)
+			assert.NotNil(t, err, "Err in poly1305.Encrypt: expected encryption failure with bad PRN")
 		}
 	}
 	prngTester(24, testFunc)
@@ -102,13 +118,12 @@ func TestDecryptFailures(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 
-	ct, err := testKey.Encrypt(testMessage)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
+	for _, m := range testMessages {
+		ct, err := testKey.Encrypt(m)
+		assert.Nil(t, err, "Err in poly1305.Encrypt must be nil")
 
-	if _, err = otherKey.Decrypt(ct); err == nil {
-		t.Fatal("decrypt should fail with wrong key")
+		_, err = otherKey.Decrypt(ct)
+		assert.NotNil(t, err, "Err in poly1305.Decrypt negative must not be nil")
 	}
 }
 
