@@ -14,7 +14,7 @@ var (
 
 const (
 	testCount         = 1000
-	testCountBytesMin = 10
+	testCountBytesMin = 1
 	testCountBytesMax = 1000
 )
 
