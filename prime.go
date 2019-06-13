@@ -33,7 +33,7 @@ type primedCodec struct {
 // the definition of sample types may not be supported. Also, avoid introducing types via
 // map keys/values as map iteration isn't consistent. Introducing new types during encoding
 // will prevent you from adding new types to the Primed type-set, and also will include
-// the type definiftion over-head in thier output.
+// the type definition over-head in their output.
 // Warning, PrimedCodec should be used consistently (for reading & writing). It
 // won't be able to read data written by unprimed encoders, and data written by it
 // won't be able to be read by unprimed decoders.

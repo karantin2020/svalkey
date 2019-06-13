@@ -141,7 +141,7 @@ func TestStore_List(t *testing.T) {
 	assert.NotNil(t, testType, "List value must not be nil")
 	assert.NotNil(t, retList, "List return []ListPair must not be nil")
 	assert.Equal(t, len(testData), len(retList),
-		"In List returnd slices length must be equal to length of"+
+		"In List returned slices length must be equal to length of"+
 			" original test data")
 	for _, v := range retList {
 		assert.Equal(t, testData[v.key], v.value.(TestType))
