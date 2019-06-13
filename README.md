@@ -1,7 +1,6 @@
 # svalkey
 
 [![GoDoc](https://godoc.org/github.com/karantin2020/svalkey?status.png)](https://godoc.org/github.com/karantin2020/svalkey)
-[![Build Status](https://travis-ci.org/karantin2020/svalkey.svg?branch=master)](https://travis-ci.org/karantin2020/svalkey)
 [![Coverage Status](https://coveralls.io/repos/karantin2020/svalkey/badge.svg)](https://coveralls.io/r/karantin2020/svalkey)
 [![Go Report Card](https://goreportcard.com/badge/github.com/karantin2020/svalkey)](https://goreportcard.com/report/github.com/karantin2020/svalkey)
 
