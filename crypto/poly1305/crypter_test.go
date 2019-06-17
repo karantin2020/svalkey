@@ -6,6 +6,9 @@ import (
 	fuzz "github.com/google/gofuzz"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/karantin2020/svalkey/testutils"
+	"github.com/karantin2020/svalkey/types"
 )
 
 var (
@@ -28,25 +31,10 @@ func prepareTestMessages() {
 	fm.Fuzz(&testMessages)
 }
 
-func TestPoly1305_Crypter(t *testing.T) {
-	prepareTestMessages()
-	p, err := New()
-	assert.Nil(t, err, "New poly1305 must not pass error")
-	for _, m := range testMessages {
-		ct, err := p.Encrypt(m)
-		assert.Nil(t, err, "Encrypt must not pass error")
-		assert.NotNil(t, ct, "Encrypt must not pass nil ciphertext")
-		assert.NotEqual(t, ct, []byte{}, "Encrypt must not pass empty ciphertext")
-		assert.LessOrEqual(t, len(m)+p.key.NonceSize(), len(ct),
-			"Encrypt must pass ciphertext with length of original message or more")
-
-		pt, err := p.Decrypt(ct)
-		assert.Nil(t, err, "Decrypt must not pass error")
-
-		assert.Equal(t, m, pt,
-			"Result plaintext is not equal to testMessage")
-	}
-
+func TestEncryptDecrypt(t *testing.T) {
+	testutils.RunTestEncryptDecrypt(t, func(key []byte) (types.Crypter, error) {
+		return New()
+	})
 }
 
 func TestPoly1305_Crypter_Negative1(t *testing.T) {

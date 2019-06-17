@@ -1,5 +1,13 @@
 package poly1305
 
+import (
+	"github.com/karantin2020/svalkey/types"
+)
+
+var (
+	_ types.Crypter = &Poly1305{}
+)
+
 // Poly1305 is poly1305 implementation of svalkey
 // Crypter interface
 type Poly1305 struct {

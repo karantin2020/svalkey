@@ -3,6 +3,8 @@ package svalkey
 import (
 	"io"
 	"sync"
+
+	"github.com/karantin2020/svalkey/types"
 )
 
 type pooledCodec struct {
@@ -17,7 +19,7 @@ type pooledCodec struct {
 // which has encoded a non-primitive type [it has cached type info]. On the other hand,
 // a json Encoder is safe for re-use and so is a Primed Gob Encoder which has only encoded primed types
 // since all primed types are cached for all encoders/decoders.
-func NewPooledCodec(codec Codec) Codec {
+func NewPooledCodec(codec types.Codec) types.Codec {
 	return &pooledCodec{
 		encoderPool: sync.Pool{New: func() interface{} {
 			var enc delegateEncoder
@@ -32,22 +34,22 @@ func NewPooledCodec(codec Codec) Codec {
 	}
 }
 
-func (p *pooledCodec) NewEncoder(w io.Writer) Encoder {
+func (p *pooledCodec) NewEncoder(w io.Writer) types.Encoder {
 	enc := p.encoderPool.Get().(*delegateEncoder)
 	enc.Writer = w
 	return enc
 }
 
-func (p *pooledCodec) NewDecoder(r io.Reader) Decoder {
+func (p *pooledCodec) NewDecoder(r io.Reader) types.Decoder {
 	dec := p.decoderPool.Get().(*delegateDecoder)
 	dec.Reader = r
 	return dec
 }
 
-func (p *pooledCodec) PutEncoder(enc Encoder) {
+func (p *pooledCodec) PutEncoder(enc types.Encoder) {
 	p.encoderPool.Put(enc)
 }
 
-func (p *pooledCodec) PutDecoder(dec Decoder) {
+func (p *pooledCodec) PutDecoder(dec types.Decoder) {
 	p.decoderPool.Put(dec)
 }

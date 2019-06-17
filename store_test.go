@@ -10,14 +10,17 @@ import (
 	"github.com/abronan/valkeyrie/store"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/karantin2020/svalkey/crypto/chacha20poly1305"
 	"github.com/karantin2020/svalkey/crypto/naclsecret"
+	"github.com/karantin2020/svalkey/types"
 )
 
 var (
-	testKey                = "test key"
-	testVal                = TestType{}
-	ErrorNoKey             = errors.New("Key doesn't exist")
-	_          store.Store = &Mock{}
+	testKey                 = "test key"
+	testVal                 = TestType{}
+	ErrorNoKey              = errors.New("Key doesn't exist")
+	_           store.Store = &Mock{}
+	testCrypter types.Crypter
 )
 
 const (
@@ -38,10 +41,19 @@ func newMockStore(t *testing.T) store.Store {
 	return m
 }
 
+func newTestCrypter(t *testing.T) {
+	c, err := chacha20poly1305.New(nil)
+	if !assert.Nil(t, err, "chacha20poly1305.New must not return error") {
+		t.Fatalf("error creating test crypter")
+	}
+	testCrypter = c
+}
+
 func TestNewCustomStore(t *testing.T) {
 	m := newMockStore(t)
+	newTestCrypter(t)
 
-	st, err := NewCustomStore(m, GobCodec{})
+	st, err := NewCustomStore(m, GobCodec{}, testCrypter)
 	assert.Nil(t, err, "Err in NewCustomStore must be nil")
 	assert.NotNil(t, st, "New custom store must not be nil")
 }
@@ -49,7 +61,7 @@ func TestNewCustomStore(t *testing.T) {
 func TestStore_PutAndGet(t *testing.T) {
 	m := newMockStore(t)
 
-	st, err := NewCustomStore(m, GobCodec{})
+	st, err := NewCustomStore(m, GobCodec{}, testCrypter)
 	Register(TestType{})
 	assert.Nil(t, err, "Err in Put must be nil")
 	assert.NotNil(t, st, "New custom store must not be nil")
@@ -88,7 +100,7 @@ func TestStore_PutAndGet(t *testing.T) {
 	assert.NotNil(t, err, "Err in Get negative must not be nil")
 	assert.NotNil(t, testValErr, "Get negativevalue must not be nil")
 	assert.NotEqual(t, testVal, testValErr, "Result Put->Get Value "+
-		"in negative must be equal")
+		"in negative must not be equal")
 
 	for k, v := range testData {
 		testValOut := TestType{}
@@ -111,7 +123,7 @@ func TestStore_PutAndGet(t *testing.T) {
 func TestStore_List(t *testing.T) {
 	m := newMockStore(t)
 
-	st, err := NewCustomStore(m, GobCodec{})
+	st, err := NewCustomStore(m, GobCodec{}, testCrypter)
 	nc, err := naclsecret.New()
 	assert.Nil(t, err, "Err in New nacl key must be nil")
 	assert.NotNil(t, nc, "New nacl key must not be nil")

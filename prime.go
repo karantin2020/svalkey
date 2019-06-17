@@ -4,20 +4,22 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
+
+	"github.com/karantin2020/svalkey/types"
 )
 
 type delegateEncoder struct {
-	Encoder
+	types.Encoder
 	io.Writer
 }
 
 type delegateDecoder struct {
-	Decoder
+	types.Decoder
 	io.Reader
 }
 
 type primedCodec struct {
-	codec Codec
+	codec types.Codec
 	types []interface{}
 	data  []byte
 }
@@ -37,7 +39,7 @@ type primedCodec struct {
 // Warning, PrimedCodec should be used consistently (for reading & writing). It
 // won't be able to read data written by unprimed encoders, and data written by it
 // won't be able to be read by unprimed decoders.
-func NewPrimedCodec(codec Codec, types ...interface{}) (Codec, error) {
+func NewPrimedCodec(codec types.Codec, types ...interface{}) (types.Codec, error) {
 	var buf bytes.Buffer
 	enc := codec.NewEncoder(&buf)
 	if err := enc.Encode(types); err != nil {
@@ -54,7 +56,7 @@ func NewPrimedCodec(codec Codec, types ...interface{}) (Codec, error) {
 	}, nil
 }
 
-func (p *primedCodec) NewEncoder(w io.Writer) Encoder {
+func (p *primedCodec) NewEncoder(w io.Writer) types.Encoder {
 	var enc delegateEncoder
 	enc.Encoder = p.codec.NewEncoder(&enc)
 	enc.Writer = ioutil.Discard
@@ -65,7 +67,7 @@ func (p *primedCodec) NewEncoder(w io.Writer) Encoder {
 	return &enc
 }
 
-func (p *primedCodec) NewDecoder(r io.Reader) Decoder {
+func (p *primedCodec) NewDecoder(r io.Reader) types.Decoder {
 	var dec delegateDecoder
 	dec.Decoder = p.codec.NewDecoder(&dec)
 	dec.Reader = bytes.NewReader(p.data)

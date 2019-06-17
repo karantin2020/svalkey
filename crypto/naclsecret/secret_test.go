@@ -6,10 +6,11 @@ import (
 	"testing"
 
 	fuzz "github.com/google/gofuzz"
-
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/nacl/secretbox"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/karantin2020/svalkey/testutils"
+	"github.com/karantin2020/svalkey/types"
 )
 
 var (
@@ -45,17 +46,10 @@ func TestGenerateKey(t *testing.T) {
 	prepareTestMessages()
 }
 
-func TestEncrypt(t *testing.T) {
-	for _, m := range testMessages {
-		ct, err := testKey.Encrypt(m)
-		assert.Nil(t, err, "Err in poly1305.Encrypt must be nil")
-
-		pt, err := testKey.Decrypt(ct)
-		assert.Nil(t, err, "Err in poly1305.Decrypt must be nil")
-
-		assert.Equal(t, m, pt, "Encrypted->Decrypted messages"+
-			" must be equal to original messages")
-	}
+func TestEncryptDecrypt(t *testing.T) {
+	testutils.RunTestEncryptDecrypt(t, func(key []byte) (types.Crypter, error) {
+		return New()
+	})
 }
 
 /*
@@ -81,7 +75,7 @@ func TestPRNGFailures(t *testing.T) {
 	testFunc := func() {
 		_, err := GenerateKey()
 		if err == nil {
-			t.Fatal("Err in poly1305.Encrypt: expected key generation failure with bad PRNG")
+			t.Fatal("Err in naclsecret.Encrypt: expected key generation failure with bad PRNG")
 		}
 	}
 	prngTester(32, testFunc)
@@ -89,7 +83,7 @@ func TestPRNGFailures(t *testing.T) {
 	testFunc = func() {
 		_, err := GenerateNonce()
 		if err == nil {
-			t.Fatal("Err in poly1305.GenerateNonce: expected nonce generation failure with bad PRNG")
+			t.Fatal("Err in naclsecret.GenerateNonce: expected nonce generation failure with bad PRNG")
 		}
 	}
 	prngTester(24, testFunc)
@@ -97,7 +91,7 @@ func TestPRNGFailures(t *testing.T) {
 	testFunc = func() {
 		for _, m := range testMessages {
 			_, err := testKey.Encrypt(m)
-			assert.NotNil(t, err, "Err in poly1305.Encrypt: expected encryption failure with bad PRN")
+			assert.NotNil(t, err, "Err in naclsecret.Encrypt: expected encryption failure with bad PRN")
 		}
 	}
 	prngTester(24, testFunc)
@@ -120,10 +114,10 @@ func TestDecryptFailures(t *testing.T) {
 
 	for _, m := range testMessages {
 		ct, err := testKey.Encrypt(m)
-		assert.Nil(t, err, "Err in poly1305.Encrypt must be nil")
+		assert.Nil(t, err, "Err in naclsecret.Encrypt must be nil")
 
 		_, err = otherKey.Decrypt(ct)
-		assert.NotNil(t, err, "Err in poly1305.Decrypt negative must not be nil")
+		assert.NotNil(t, err, "Err in naclsecret.Decrypt negative must not be nil")
 	}
 }
 
@@ -140,4 +134,24 @@ func TestNaClBox_JSON(t *testing.T) {
 	err = nn.UnmarshalJSON(got)
 	assert.Nil(t, err, "NaClBox UnmarshalJSON() must pass no error")
 	assert.Equal(t, *n.key, *nn.key, "UnmarshalJSON key must be equal to origin key")
+}
+
+func TestNaClBox_MarshalJSON(t *testing.T) {
+	n1, err := New()
+	datKey, err := n1.MarshalJSON()
+	assert.Nil(t, err, "Marshal must not return error")
+
+	n2 := &NaClBox{}
+	err = n2.UnmarshalJSON(datKey)
+	assert.Nil(t, err, "Unmarshal must not return error")
+
+	for _, m := range testMessages {
+		ct, err := n1.Encrypt(m)
+		assert.Nil(t, err, "Err in naclsecret.Encrypt must be nil")
+		pt, err := n2.Decrypt(ct)
+		assert.Nil(t, err, "Err in naclsecret.Decrypt must be nil")
+
+		assert.Equal(t, m, pt, "Encrypted->Decrypted messages"+
+			" must be equal to original messages")
+	}
 }

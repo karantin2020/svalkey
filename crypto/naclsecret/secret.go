@@ -8,7 +8,12 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/karantin2020/svalkey/types"
 	"golang.org/x/crypto/nacl/secretbox"
+)
+
+var (
+	_ types.Crypter = &NaClBox{}
 )
 
 const (

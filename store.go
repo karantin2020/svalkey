@@ -7,16 +7,18 @@ import (
 	"sync"
 
 	"github.com/abronan/valkeyrie/store"
-
-	"github.com/karantin2020/svalkey/crypto/naclsecret"
-	"github.com/karantin2020/svalkey/crypto/poly1305"
+	// "github.com/karantin2020/svalkey/crypto/aesgcm"
+	// "github.com/karantin2020/svalkey/crypto/chacha20poly1305"
+	// "github.com/karantin2020/svalkey/crypto/naclsecret"
+	// "github.com/karantin2020/svalkey/crypto/poly1305"
+	"github.com/karantin2020/svalkey/types"
 )
 
 // Store holds data to work with backend db
 type Store struct {
 	Store   store.Store
-	codec   Codec
-	crypter Crypter
+	codec   types.Codec
+	crypter types.Crypter
 }
 
 // ListPair holds return of List store method
@@ -25,10 +27,12 @@ type ListPair struct {
 	value interface{}
 }
 
-var (
-	_ Crypter = &poly1305.Poly1305{}
-	_ Crypter = &naclsecret.NaClBox{}
-)
+// var (
+// 	_ types.Crypter = &poly1305.Poly1305{}
+// 	_ types.Crypter = &naclsecret.NaClBox{}
+// 	_ types.Crypter = &aesgcm.AESGCM{}
+// 	_ types.Crypter = &chacha20poly1305.XChaCha20Poly1305{}
+// )
 
 var pool = &sync.Pool{
 	New: func() interface{} { return bytes.NewBuffer(nil) },
@@ -38,6 +42,9 @@ var (
 	// ErrorNilStore represents valkeyrie store nil pointer error
 	ErrorNilStore = fmt.Errorf("svalkey: in NewCustomStore" +
 		" vstore is nil")
+	// ErrNilCrypter represents valkeyrie store nil crypter error
+	ErrNilCrypter = fmt.Errorf("svalkey: in NewCustomStore" +
+		" crypter is nil")
 	// ErrorInvalidUnmarshal represents invalid unmarshal value error
 	ErrorInvalidUnmarshal = fmt.Errorf("svalkey: in Get" +
 		" unmarshal value is not pointer type")
@@ -54,56 +61,55 @@ var (
 
 // NewCustomStore creates new *Store with custom underlying codec
 func NewCustomStore(vstore store.Store,
-	codec Codec) (*Store, error) {
+	codec types.Codec, crypter types.Crypter) (*Store, error) {
 	if vstore == nil {
 		return nil, ErrorNilStore
 	}
 	if codec == nil {
 		codec = GobCodec{}
 	}
-	polyKey, err := poly1305.New()
-	if err != nil {
-		return nil, err
+	if crypter == nil {
+		return nil, ErrNilCrypter
 	}
 	return &Store{
 		Store:   vstore,
 		codec:   codec,
-		crypter: polyKey,
+		crypter: crypter,
 	}, nil
 }
 
 // NewJSONStore creates a new Store, using the underlying
 // json codec
-func NewJSONStore(vstore store.Store) (*Store, error) {
-	return NewCustomStore(vstore, JSONCodec{})
+func NewJSONStore(vstore store.Store, crypter types.Crypter) (*Store, error) {
+	return NewCustomStore(vstore, JSONCodec{}, crypter)
 }
 
 // NewXMLStore creates a new Store, using the underlying
 // xml codec
-func NewXMLStore(vstore store.Store) (*Store, error) {
-	return NewCustomStore(vstore, XMLCodec{})
+func NewXMLStore(vstore store.Store, crypter types.Crypter) (*Store, error) {
+	return NewCustomStore(vstore, XMLCodec{}, crypter)
 }
 
 // NewStore allows you to create a store with
 // a gob underlying Encoding
-func NewStore(vstore store.Store) (*Store, error) {
-	return NewCustomStore(vstore, GobCodec{})
+func NewStore(vstore store.Store, crypter types.Crypter) (*Store, error) {
+	return NewCustomStore(vstore, GobCodec{}, crypter)
 }
 
 // SetCodec sets new Codec to Store
-func (s *Store) SetCodec(codec Codec) {
+func (s *Store) SetCodec(codec types.Codec) {
 	s.codec = codec
 }
 
 // SetCrypter sets new Crypter to Store
-func (s *Store) SetCrypter(crypter Crypter) {
+func (s *Store) SetCrypter(crypter types.Crypter) {
 	s.crypter = crypter
 }
 
 // Put a value at the specified key
 func (s *Store) Put(key string, value interface{},
 	options *store.WriteOptions) error {
-	val, err := s.toBytes(value)
+	val, err := s.marshal(value)
 	if err != nil {
 		return err
 	}
