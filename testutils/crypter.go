@@ -76,3 +76,30 @@ func RunTestEncryptDecrypt(t *testing.T, fn func([]byte) (types.Crypter, error))
 		}
 	}
 }
+
+// RunTestEncryptDecryptPositive tests decrypt with new key
+func RunTestEncryptDecryptPositive(t *testing.T, old types.Crypter, new types.Crypter) {
+	for _, m := range testMessages {
+		got, err := old.Encrypt(m)
+		assert.Nil(t, err, "Crypter.Encrypt must not return error")
+		assert.NotNil(t, got, "Crypter.Encrypt must not return nil value")
+
+		pt, err := new.Decrypt(got)
+		assert.Nil(t, err, "Crypter.Decrypt must not return error")
+		assert.NotNil(t, got, "Crypter.Decrypt must not return nil value")
+		assert.Equal(t, m, pt, "Decrypt must return original value")
+	}
+}
+
+// RunTestEncryptDecryptNegative tests decrypt with new key
+func RunTestEncryptDecryptNegative(t *testing.T, old types.Crypter, new types.Crypter) {
+	for _, m := range testMessages {
+		got, err := old.Encrypt(m)
+		assert.Nil(t, err, "Crypter.Encrypt must not return error")
+		assert.NotNil(t, got, "Crypter.Encrypt must not return nil value")
+
+		pt, err := new.Decrypt(got)
+		assert.NotNil(t, err, "Crypter.Decrypt must return error")
+		assert.NotEqual(t, m, pt, "Decrypt must not return original value")
+	}
+}
