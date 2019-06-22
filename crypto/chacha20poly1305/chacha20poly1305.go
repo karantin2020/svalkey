@@ -32,7 +32,7 @@ type XChaCha20Poly1305 struct {
 // New returns new AESGCM
 func New(key []byte) (*XChaCha20Poly1305, error) {
 	xkey := XChaCha20Poly1305{}
-	if len(key) > 0 && len(key) != ccp.KeySize {
+	if len(key) != 0 && len(key) != ccp.KeySize {
 		return nil, fmt.Errorf("Unable to create new secret: incorrect key length")
 	}
 	if key == nil {

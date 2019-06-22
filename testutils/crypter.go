@@ -103,3 +103,16 @@ func RunTestEncryptDecryptNegative(t *testing.T, old types.Crypter, new types.Cr
 		assert.NotEqual(t, m, pt, "Decrypt must not return original value")
 	}
 }
+
+// GetRandomKeys returns test slice of []byte
+func GetRandomKeys(numSlices, numBytesMin, numBytesMax int) [][]byte {
+	testSlices := [][]byte{}
+	fb := fuzz.New().NilChance(0).NumElements(numBytesMin, numBytesMax)
+	fm := fuzz.New().NilChance(0).NumElements(numSlices, numSlices).Funcs(
+		func(i *[]byte, c fuzz.Continue) {
+			fb.Fuzz(i)
+		},
+	)
+	fm.Fuzz(&testSlices)
+	return testSlices
+}
