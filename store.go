@@ -7,10 +7,6 @@ import (
 	"sync"
 
 	"github.com/abronan/valkeyrie/store"
-	// "github.com/karantin2020/svalkey/crypto/aesgcm"
-	// "github.com/karantin2020/svalkey/crypto/chacha20poly1305"
-	// "github.com/karantin2020/svalkey/crypto/naclsecret"
-	// "github.com/karantin2020/svalkey/crypto/poly1305"
 	"github.com/karantin2020/svalkey/types"
 )
 
@@ -26,13 +22,6 @@ type ListPair struct {
 	key   string
 	value interface{}
 }
-
-// var (
-// 	_ types.Crypter = &poly1305.Poly1305{}
-// 	_ types.Crypter = &naclsecret.NaClBox{}
-// 	_ types.Crypter = &aesgcm.AESGCM{}
-// 	_ types.Crypter = &chacha20poly1305.XChaCha20Poly1305{}
-// )
 
 var pool = &sync.Pool{
 	New: func() interface{} { return bytes.NewBuffer(nil) },
@@ -155,24 +144,6 @@ func (s *Store) Exists(key string, options *store.ReadOptions) (bool, error) {
 	return s.Store.Exists(key, options)
 }
 
-// // Watch for changes on a key
-// func (s *Store) Watch(key string, stopCh <-chan struct{}, options *store.ReadOptions) (<-chan *store.KVPair, error) {
-// 	return s.Store.Watch(key, stopCh, options)
-// }
-
-// // WatchTree watches for changes on child nodes under
-// // a given directory
-// func (s *Store) WatchTree(directory string, stopCh <-chan struct{}, options *store.ReadOptions) (<-chan []*store.KVPair, error) {
-// 	return s.Store.WatchTree(directory, stopCh, options)
-// }
-
-// // NewLock creates a lock for a given key.
-// // The returned Locker is not held and must be acquired
-// // with `.Lock`. The Value is optional.
-// func (s *Store) NewLock(key string, options *store.LockOptions) (store.Locker, error) {
-// 	return s.Store.NewLock(key, options)
-// }
-
 // List the content of a given prefix
 func (s *Store) List(directory string, value interface{},
 	options *store.ReadOptions) ([]*ListPair, error) {
@@ -212,18 +183,6 @@ func (s *Store) List(directory string, value interface{},
 func (s *Store) DeleteTree(directory string) error {
 	return s.Store.DeleteTree(directory)
 }
-
-// // AtomicPut CAS operation on a single value.
-// // Pass previous = nil to create a new key.
-// func (s *Store) AtomicPut(key string, value []byte, previous *store.KVPair, options *store.WriteOptions) (bool, *store.KVPair, error) {
-// 	sval := s.crypter.Seal(value)
-// 	return s.Store.AtomicPut(key, sval, previous, options)
-// }
-
-// // AtomicDelete is an atomic delete of a single value
-// func (s *Store) AtomicDelete(key string, previous *store.KVPair) (bool, error) {
-// 	return s.Store.AtomicDelete(key, previous)
-// }
 
 func (s *Store) marshal(val interface{}) (data []byte, err error) {
 	buf := pool.Get().(*bytes.Buffer)
