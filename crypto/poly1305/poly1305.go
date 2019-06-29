@@ -193,7 +193,7 @@ func (m *MACKey) UnmarshalJSON(data []byte) error {
 	}
 	copy(m.K[:], j.K)
 	copy(m.R[:], j.R)
-
+	maskKey(m)
 	return nil
 }
 
@@ -266,6 +266,12 @@ var _ cipher.AEAD = &Key{}
 // NonceSize returns the size of the nonce that must be passed to Seal
 // and Open.
 func (k *Key) NonceSize() int {
+	return NonceSize()
+}
+
+// NonceSize returns the size of the nonce that must be passed to Seal
+// and Open.
+func NonceSize() int {
 	return ivSize
 }
 

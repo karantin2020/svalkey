@@ -8,8 +8,9 @@ import (
 type Crypter interface {
 	Encrypt([]byte) ([]byte, error)
 	Decrypt([]byte) ([]byte, error)
-	// MarshalJSON() ([]byte, error)
-	// UnmarshalJSON([]byte) error
+	NonceSize() int
+	MarshalJSON() ([]byte, error)
+	UnmarshalJSON([]byte) error
 }
 
 // Codec provides a mechanism for storing/retriving

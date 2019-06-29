@@ -119,3 +119,8 @@ func (n *NaClBox) Decrypt(msg []byte) ([]byte, error) {
 
 	return out, nil
 }
+
+// NonceSize returns AES GCM nonce size
+func (n *NaClBox) NonceSize() int {
+	return NonceSize
+}

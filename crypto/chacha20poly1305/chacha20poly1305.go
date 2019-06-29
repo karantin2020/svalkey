@@ -78,6 +78,11 @@ func (g *XChaCha20Poly1305) Decrypt(message []byte) ([]byte, error) {
 	return out, nil
 }
 
+// NonceSize returns AES GCM nonce size
+func (g *XChaCha20Poly1305) NonceSize() int {
+	return ccp.NonceSizeX
+}
+
 // MarshalJSON converts the AESGCM to JSON.
 func (g *XChaCha20Poly1305) MarshalJSON() ([]byte, error) {
 	return []byte(hex.EncodeToString(g.key[:])), nil

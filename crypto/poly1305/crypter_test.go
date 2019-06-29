@@ -90,3 +90,38 @@ func TestNew(t *testing.T) {
 	assert.Nil(t, err, "New poly1305 must not pass error")
 	assert.NotNil(t, p, "relult of New() must be not nil")
 }
+
+func TestPoly1305_JSON(t *testing.T) {
+	n, err := New()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	got, err := n.MarshalJSON()
+	assert.Nil(t, err, "Poly1305 MarshalJSON() must pass no error")
+	assert.NotNil(t, got, "Poly1305 MarshalJSON() must pass not nil byte slice")
+
+	nn := &Poly1305{}
+	err = nn.UnmarshalJSON(got)
+	assert.Nil(t, err, "Poly1305 UnmarshalJSON() must pass no error")
+	assert.Equal(t, *n.key, *nn.key, "UnmarshalJSON key must be equal to origin key")
+}
+
+func TestPoly1305_MarshalJSON(t *testing.T) {
+	n1, err := New()
+	datKey, err := n1.MarshalJSON()
+	assert.Nil(t, err, "Marshal must not return error")
+
+	n2 := &Poly1305{}
+	err = n2.UnmarshalJSON(datKey)
+	assert.Nil(t, err, "Unmarshal must not return error")
+
+	for _, m := range testMessages {
+		ct, err := n1.Encrypt(m)
+		assert.Nil(t, err, "Err in Poly1305.Encrypt must be nil")
+		pt, err := n2.Decrypt(ct)
+		assert.Nil(t, err, "Err in Poly1305.Decrypt must be nil")
+
+		assert.Equal(t, m, pt, "Encrypted->Decrypted messages"+
+			" must be equal to original messages")
+	}
+}

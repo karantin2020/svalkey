@@ -140,6 +140,11 @@ func (g *AESGCM) Decrypt(message []byte) ([]byte, error) {
 	return out, nil
 }
 
+// NonceSize returns AES GCM nonce size
+func (g *AESGCM) NonceSize() int {
+	return NonceSize
+}
+
 // MarshalJSON converts the AESGCM to JSON.
 func (g *AESGCM) MarshalJSON() ([]byte, error) {
 	return []byte(hex.EncodeToString(g.key[:])), nil
