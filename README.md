@@ -4,7 +4,13 @@
 [![Coverage Status](https://coveralls.io/repos/karantin2020/svalkey/badge.svg)](https://coveralls.io/r/karantin2020/svalkey)
 [![Go Report Card](https://goreportcard.com/badge/github.com/karantin2020/svalkey)](https://goreportcard.com/report/github.com/karantin2020/svalkey)
 
+## Overview  
 `svalkey` provides a `Go` native library to securely store metadata using Distributed Key/Value stores (or common databases).
+
+## Install  
+```
+go get -u -v github.com/karantin2020/svalkey
+```
 
 The goal of `svalkey` is to abstract common store operations (Get/Put/List/etc.) for multiple distributed and/or local Key/Value store backends thus using the same self-contained codebase to manage them all.
 
