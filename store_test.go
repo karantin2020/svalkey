@@ -3,11 +3,18 @@ package svalkey
 import (
 	"errors"
 	"fmt"
+	"os"
 	"testing"
+	"time"
 
 	fuzz "github.com/google/gofuzz"
 
+	"github.com/abronan/valkeyrie"
 	"github.com/abronan/valkeyrie/store"
+	"github.com/abronan/valkeyrie/store/boltdb"
+
+	"github.com/abronan/valkeyrie/store/consul"
+	etcdv3 "github.com/abronan/valkeyrie/store/etcd/v3"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/karantin2020/svalkey/types"
@@ -49,6 +56,77 @@ func TestNewCustomStore(t *testing.T) {
 	st, err := NewCustomStore(m, GobCodec{}, []byte{1, 0}, testSecret)
 	assert.Nil(t, err, "Err in NewCustomStore must be nil")
 	assert.NotNil(t, st, "New custom store must not be nil")
+}
+
+func TestNewStoreReal(t *testing.T) {
+	// consul.Register()
+	// etcdv3.Register()
+	// boltdb.Register()
+	// m := newMockStore(t)
+	fs := fuzz.New().NumElements(32, 32)
+	fs.Fuzz(&testSecret)
+	tests := []struct {
+		name     string
+		register func()
+		backend  store.Backend
+		client   string
+		secret   [32]byte
+		want     func(assert.TestingT, interface{}, ...interface{}) bool
+		wantErr  bool
+	}{
+		{
+			name:     "Boltdb test",
+			register: boltdb.Register,
+			backend:  store.BOLTDB,
+			client:   "./inner/testdata/test.log",
+			secret:   testSecret,
+			want:     assert.NotNil,
+			wantErr:  false,
+		},
+		{
+			name:     "Consul test",
+			register: consul.Register,
+			backend:  store.CONSUL,
+			client:   "127.0.0.1:8500",
+			secret:   testSecret,
+			want:     assert.NotNil,
+			wantErr:  false,
+		},
+		{
+			name:     "Etcdv3 test",
+			register: etcdv3.Register,
+			backend:  store.ETCDV3,
+			client:   "127.0.0.1:8500",
+			secret:   testSecret,
+			want:     assert.NotNil,
+			wantErr:  false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.register()
+			kv, err := valkeyrie.NewStore(tt.backend,
+				[]string{tt.client},
+				&store.Config{
+					ConnectionTimeout: 3 * time.Second,
+					SyncPeriod:        30 * time.Second,
+					Bucket:            "testBucket",
+					PersistConnection: true,
+				})
+			assert.NoError(t, err, "valkeyrie.NewStore must not return error")
+			assert.NotNil(t, kv, "valkeyrie.Store must not be nil")
+
+			st, err := NewStore(kv, []byte{1, 0}, testSecret)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NewStore() error = %v, wantErr %v", err, tt.wantErr)
+				tt.want(t, st, "New store result must not be nil")
+				return
+			}
+			if tt.backend == store.BOLTDB {
+				os.RemoveAll("./inner/testdata")
+			}
+		})
+	}
 }
 
 func TestStore_PutAndGet(t *testing.T) {
