@@ -163,11 +163,14 @@ func (s *Store) Exists(key string, options *store.ReadOptions) (bool, error) {
 // List the content of a given prefix
 func (s *Store) List(directory string, value interface{},
 	options *store.ReadOptions) ([]*ListPair, error) {
+	retList := []*ListPair{}
 	lres, err := s.Store.List(directory, options)
 	if err != nil {
+		if err == store.ErrKeyNotFound {
+			return retList, nil
+		}
 		return nil, err
 	}
-	retList := []*ListPair{}
 	v := reflect.ValueOf(value)
 	if v.Kind() != reflect.Ptr {
 		return nil, ErrorInvalidOutPointer
