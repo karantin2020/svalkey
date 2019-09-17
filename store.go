@@ -69,6 +69,7 @@ func NewCustomStore(vstore store.Store,
 	return &Store{
 		Store:        vstore,
 		codec:        codec,
+		key:          key,
 		cipherSuites: cipherSuites,
 	}, nil
 }

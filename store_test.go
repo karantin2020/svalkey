@@ -215,16 +215,22 @@ func TestStore_PutAndGetOne(t *testing.T) {
 	assert.Nil(t, err, "Err in Put must be nil")
 	assert.NotNil(t, st, "New custom store must not be nil")
 
-	err = ct.Put(k, v, nil)
-	assert.Nil(t, err, "Err in Put must be nil")
-
-	mcs := ct.Store.(*Mock)
-	mv = mcs.kv[k]
-	fmt.Printf("for key '%v' chacha20Poly1305 encoded value is '%v'\n", testKey, mv)
 	testValOut = testValOut[:0]
 	err = ct.Get(k, &testValOut, nil)
 	assert.Nil(t, err, "Err in Get must be nil")
-	fmt.Printf("for key '%v' chacha20Poly1305 decoded value is '%s'\n", testKey, string(testValOut))
+	fmt.Printf("for key '%v' decoded value is '%s'\n", testKey, string(testValOut))
+
+	// Negative password test
+	fs := fuzz.New().NumElements(32, 32)
+	fs.Fuzz(&testSecret)
+	nt, err := NewCustomStore(m, GobCodec{}, []byte{1, 0}, testSecret)
+	assert.Nil(t, err, "Err in Put must be nil")
+	assert.NotNil(t, nt, "New custom store must not be nil")
+
+	testValOut = testValOut[:0]
+	err = nt.Get(k, &testValOut, nil)
+	assert.NotNil(t, err, "Err in Get must not be nil: incorrect db password")
+	fmt.Printf("Get operation returned error: %v\n", err)
 }
 
 func TestStore_List(t *testing.T) {
