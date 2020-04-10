@@ -1,6 +1,7 @@
 package svalkey
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/abronan/valkeyrie/store"
@@ -22,6 +23,9 @@ func (m *Mock) Put(key string,
 	value []byte, options *store.WriteOptions) error {
 	m.Lock()
 	defer m.Unlock()
+	if _, ok := m.kv[key]; ok {
+		return errors.New("MockStore: with Put try to rewrite existing path")
+	}
 	m.kv[key] = value
 	return nil
 }

@@ -219,6 +219,7 @@ func deriveKey(masterkey []byte) ([]byte, []byte, error) {
 func (s *Store) encode(val interface{}, cs []byte, key []byte) (data []byte, err error) {
 	buf := pool.Get().(*bytes.Buffer)
 	defer func() {
+		zeroBytes(buf.Bytes())
 		buf.Reset()
 		pool.Put(buf)
 	}()
@@ -309,4 +310,10 @@ func (s *Store) unmarshal(data []byte, val interface{}) (err error) {
 		pCodec.PutDecoder(dec)
 	}
 	return err
+}
+
+func zeroBytes(b []byte) {
+	for i := range b {
+		b[i] = 0
+	}
 }

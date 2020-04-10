@@ -1,11 +1,14 @@
 package svalkey
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"os"
 	"testing"
 	"time"
+
+	"math/rand"
 
 	fuzz "github.com/google/gofuzz"
 
@@ -13,8 +16,6 @@ import (
 	"github.com/abronan/valkeyrie/store"
 	"github.com/abronan/valkeyrie/store/boltdb"
 
-	"github.com/abronan/valkeyrie/store/consul"
-	etcdv3 "github.com/abronan/valkeyrie/store/etcd/v3"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/karantin2020/svalkey/types"
@@ -30,17 +31,50 @@ var (
 )
 
 const (
-	testCount         = 1000
-	testCountBytesMin = 1
-	testCountBytesMax = 1000
+	testCount         = 10000
+	testListLen       = 100
+	testCountBytesMin = 3
+	testCountBytesMax = 10000
 )
 
 type TestType struct {
-	A, B int64
-	C    string
-	D    float64
-	E    []byte
+	A int64   `gob:"a" json:"a"`
+	B int64   `gob:"b" json:"b"`
+	C string  `gob:"c" json:"c"`
+	D float64 `gob:"d" json:"d"`
+	E []byte  `gob:"e" json:"e"`
 }
+
+type KeyType struct {
+	K string
+}
+
+func fuzzString(i *string, c fuzz.Continue) {
+	*i = c.RandString()
+	for len(*i) < 6 {
+		*i = c.RandString()
+	}
+	// *i = base64.RawURLEncoding.EncodeToString([]byte(*i))
+}
+
+func fuzzTestDataKeys(i *KeyType, c fuzz.Continue) {
+	i.K = c.RandString()
+	for len(i.K) < 6 {
+		i.K = c.RandString()
+	}
+	i.K = base64.RawURLEncoding.EncodeToString([]byte(i.K))
+}
+
+var (
+	fb = fuzz.NewWithSeed(time.Now().Unix()).NilChance(0).NumElements(testCountBytesMin, testCountBytesMax)
+	fm = fuzz.NewWithSeed(time.Now().Unix()).NilChance(0).NumElements(testCount, testCount).Funcs(
+		fuzzTestDataKeys,
+		fuzzString,
+		func(i *[]byte, c fuzz.Continue) {
+			fb.Fuzz(i)
+		},
+	)
+)
 
 func newMockStore(t *testing.T) store.Store {
 	m := NewMock()
@@ -50,7 +84,7 @@ func newMockStore(t *testing.T) store.Store {
 func TestNewCustomStore(t *testing.T) {
 	m := newMockStore(t)
 	// newTestCrypter(t)
-	fs := fuzz.New().NumElements(32, 32)
+	fs := fuzz.NewWithSeed(time.Now().Unix()).NilChance(0).NumElements(32, 32)
 	fs.Fuzz(&testSecret)
 
 	st, err := NewCustomStore(m, GobCodec{}, []byte{1, 0}, testSecret)
@@ -61,7 +95,7 @@ func TestNewCustomStore(t *testing.T) {
 func TestNewStoreReal(t *testing.T) {
 	// consul.Register()
 	// etcdv3.Register()
-	// boltdb.Register()
+	boltdb.Register()
 	// m := newMockStore(t)
 	fs := fuzz.New().NumElements(32, 32)
 	fs.Fuzz(&testSecret)
@@ -83,24 +117,24 @@ func TestNewStoreReal(t *testing.T) {
 			want:     assert.NotNil,
 			wantErr:  false,
 		},
-		{
-			name:     "Consul test",
-			register: consul.Register,
-			backend:  store.CONSUL,
-			client:   "127.0.0.1:8500",
-			secret:   testSecret,
-			want:     assert.NotNil,
-			wantErr:  false,
-		},
-		{
-			name:     "Etcdv3 test",
-			register: etcdv3.Register,
-			backend:  store.ETCDV3,
-			client:   "127.0.0.1:8500",
-			secret:   testSecret,
-			want:     assert.NotNil,
-			wantErr:  false,
-		},
+		// 		{
+		// 			name:     "Consul test",
+		// 			register: consul.Register,
+		// 			backend:  store.CONSUL,
+		// 			client:   "127.0.0.1:8500",
+		// 			secret:   testSecret,
+		// 			want:     assert.NotNil,
+		// 			wantErr:  false,
+		// 		},
+		// 		{
+		// 			name:     "Etcdv3 test",
+		// 			register: etcdv3.Register,
+		// 			backend:  store.ETCDV3,
+		// 			client:   "127.0.0.1:8500",
+		// 			secret:   testSecret,
+		// 			want:     assert.NotNil,
+		// 			wantErr:  false,
+		// 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -132,33 +166,28 @@ func TestNewStoreReal(t *testing.T) {
 func TestStore_PutAndGet(t *testing.T) {
 	m := newMockStore(t)
 
-	st, err := NewCustomStore(m, GobCodec{}, []byte{0, 1}, testSecret)
+	st, err := NewCustomStore(m, JSONCodec{}, []byte{0, 1}, testSecret)
 	Register(TestType{})
 	assert.Nil(t, err, "Err in Put must be nil")
 	assert.NotNil(t, st, "New custom store must not be nil")
 
-	testData := map[string]TestType{}
-	fb := fuzz.New().NilChance(0).NumElements(testCountBytesMin, testCountBytesMax)
-	fm := fuzz.New().NilChance(0).NumElements(testCount, testCount).Funcs(
-		func(i *string, c fuzz.Continue) {
-			*i = c.RandString()
-			for len(*i) == 0 {
-				*i = c.RandString()
-			}
-		},
-		func(i *[]byte, c fuzz.Continue) {
-			fb.Fuzz(i)
-		},
-	)
+	testData := map[KeyType]TestType{}
+	// fb := fuzz.New().NilChance(0).NumElements(testCountBytesMin, testCountBytesMax)
+	// fm := fuzz.New().NilChance(0).NumElements(testCount, testCount).Funcs(
+	// 	fuzzString,
+	// 	func(i *[]byte, c fuzz.Continue) {
+	// 		fb.Fuzz(i)
+	// 	},
+	// )
 	fm.Fuzz(&testData)
 	assert.Greater(t, len(testData), testCount/2,
 		"Must have greater than testCount/2 random test values")
 	i := 0
 	for k, v := range testData {
-		err = st.Put(k, v, nil)
-		assert.Nil(t, err, "Err in Put must be nil")
+		err = st.Put(k.K, v, nil)
+		assert.Nil(t, err, "Err in Put must be nil; key: '"+k.K+"'")
 		if i == 3 {
-			testKey = k
+			testKey = k.K
 			testVal = v
 		}
 		i++
@@ -173,28 +202,31 @@ func TestStore_PutAndGet(t *testing.T) {
 	assert.NotEqual(t, testVal, testValErr, "Result Put->Get Value "+
 		"in negative must not be equal")
 
+	ic := 0
 	for k, v := range testData {
 		testValOut := TestType{}
-		err = st.Get(k, &testValOut, nil)
+		err = st.Get(k.K, &testValOut, nil)
 		if !assert.Nil(t, err, "Err in Get must be nil") {
-			fmt.Printf("Error encoded value is: %x\n", ms.kv[k])
+			fmt.Printf("Error encoded value is: %x\n", ms.kv[k.K])
 			fmt.Printf("Error key is: %s\n", k)
 			fmt.Printf("Error value is: %v\n", v)
 		}
 		assert.NotNil(t, testValOut, "Get value must not be nil")
-		if !assert.Equal(t, v, testValOut, "Result Put->Get Value must be equal") {
+		if !assert.EqualValues(t, v, testValOut, "Result Put->Get Value must be equal") {
+			fmt.Printf("error in #%d\n", ic)
 			fmt.Printf("Not equal key is: %s\n", k)
 			fmt.Printf("Not equal value is: %v\n", v)
 			fmt.Printf("Not equal out value is: %v\n", testValOut)
 		}
-
+		ic++
 	}
+	st.Store.DeleteTree("")
 }
 
 func TestStore_PutAndGetOne(t *testing.T) {
 	m := newMockStore(t)
 
-	st, err := NewCustomStore(m, GobCodec{}, []byte{0, 1}, testSecret)
+	st, err := NewCustomStore(m, JSONCodec{}, []byte{0, 1}, testSecret)
 	assert.Nil(t, err, "Err in Put must be nil")
 	assert.NotNil(t, st, "New custom store must not be nil")
 
@@ -203,56 +235,53 @@ func TestStore_PutAndGetOne(t *testing.T) {
 	err = st.Put(k, v, nil)
 	assert.Nil(t, err, "Err in Put must be nil")
 
-	ms := st.Store.(*Mock)
-	mv := ms.kv[k]
-	fmt.Printf("for key '%v' AES-GCM-256 encoded value is '%v'\n", testKey, mv)
+	// ms := st.Store.(*Mock)
+	// mv := ms.kv[k]
+	// _ = mv
+	// fmt.Printf("for key '%v' AES-GCM-256 encoded value is '%v'\n", testKey, mv)
 	testValOut := []byte{}
 	err = st.Get(k, &testValOut, nil)
 	assert.Nil(t, err, "Err in Get must be nil")
-	fmt.Printf("for key '%v' AES-GCM-256 decoded value is '%s'\n", testKey, string(testValOut))
+	// fmt.Printf("for key '%v' AES-GCM-256 decoded value is '%s'\n", testKey, string(testValOut))
 
-	ct, err := NewCustomStore(m, GobCodec{}, []byte{1, 0}, testSecret)
+	ct, err := NewCustomStore(m, JSONCodec{}, []byte{1, 0}, testSecret)
 	assert.Nil(t, err, "Err in Put must be nil")
 	assert.NotNil(t, st, "New custom store must not be nil")
 
 	testValOut = testValOut[:0]
 	err = ct.Get(k, &testValOut, nil)
 	assert.Nil(t, err, "Err in Get must be nil")
-	fmt.Printf("for key '%v' decoded value is '%s'\n", testKey, string(testValOut))
+	// fmt.Printf("for key '%v' decoded value is '%s'\n", testKey, string(testValOut))
 
 	// Negative password test
-	fs := fuzz.New().NumElements(32, 32)
+	fs := fuzz.NewWithSeed(time.Now().Unix()).NilChance(0).NumElements(32, 32)
 	fs.Fuzz(&testSecret)
-	nt, err := NewCustomStore(m, GobCodec{}, []byte{1, 0}, testSecret)
+	fs.Fuzz(&testSecret)
+	nt, err := NewCustomStore(m, JSONCodec{}, []byte{1, 0}, testSecret)
 	assert.Nil(t, err, "Err in Put must be nil")
 	assert.NotNil(t, nt, "New custom store must not be nil")
 
 	testValOut = testValOut[:0]
 	err = nt.Get(k, &testValOut, nil)
 	assert.NotNil(t, err, "Err in Get must not be nil: incorrect db password")
-	fmt.Printf("Get operation returned error: %v\n", err)
+	// fmt.Printf("Get operation returned error: %v\n", err)
 }
 
 func TestStore_List(t *testing.T) {
 	m := newMockStore(t)
 
-	st, err := NewCustomStore(m, GobCodec{}, []byte{1, 0}, testSecret)
+	st, err := NewCustomStore(m, JSONCodec{}, []byte{1, 0}, testSecret)
 	Register(TestType{})
 	assert.Nil(t, err, "Err in Put must be nil")
 	assert.NotNil(t, st, "New custom store must not be nil")
 
-	testData := map[string]TestType{}
-	fm := fuzz.New().NilChance(0).NumElements(testCount, testCount).Funcs(
-		func(i *string, c fuzz.Continue) {
-			*i = c.RandString()
-			for len(*i) == 0 {
-				*i = c.RandString()
-			}
-		},
-	)
+	testData := map[KeyType]TestType{}
+	// fm := fuzz.New().NilChance(0).NumElements(testCount, testCount).Funcs(
+	// 	fuzzString,
+	// )
 	fm.Fuzz(&testData)
 	for k, v := range testData {
-		err = st.Put(k, v, nil)
+		err = st.Put(k.K, v, nil)
 		assert.Nil(t, err, "Err in Put must be nil")
 	}
 
@@ -261,10 +290,49 @@ func TestStore_List(t *testing.T) {
 	assert.Nil(t, err, "Err in List must be nil")
 	assert.NotNil(t, testType, "List value must not be nil")
 	assert.NotNil(t, retList, "List return []ListPair must not be nil")
-	assert.Equal(t, len(testData), len(retList),
+	assert.EqualValues(t, len(testData), len(retList),
 		"In List returned slices length must be equal to length of"+
 			" original test data")
 	for _, v := range retList {
-		assert.Equal(t, testData[v.key], v.value.(TestType))
+		assert.EqualValues(t, testData[KeyType{v.key}], v.value.(TestType))
 	}
+	m.DeleteTree("")
+}
+
+type int63nPicker interface {
+	Int63n(int64) int64
+}
+
+type charRange struct {
+	first, last rune
+}
+
+// choose returns a random unicode character from the given range, using the
+// given randomness source.
+func (cr charRange) choose(r int63nPicker) rune {
+	count := int64(cr.last - cr.first + 1)
+	return cr.first + rune(r.Int63n(count))
+}
+
+var unicodeRanges = []charRange{
+	{' ', '~'}, // ASCII characters
+	// {'\u00a0', '\u02af'}, // Multi-byte encoded characters
+	// {'\u4e00', '\u9fff'}, // Common CJK (even longer encodings)
+}
+
+// randString makes a random string up to 20 characters long. The returned string
+// may include a variety of (valid) UTF-8 encodings.
+func randString(r *rand.Rand) string {
+	n := r.Intn(20)
+	runes := make([]rune, n)
+	for i := range runes {
+		runes[i] = unicodeRanges[r.Intn(len(unicodeRanges))].choose(r)
+	}
+	return string(runes)
+}
+
+// randUint64 makes random 64 bit numbers.
+// Weirdly, rand doesn't have a function that gives you 64 random bits.
+func randUint64(r *rand.Rand) uint64 {
+	return uint64(r.Uint32())<<32 | uint64(r.Uint32())
 }
